@@ -45,6 +45,9 @@ def main():
     # `config` dictionary.
     training_loader, test_loader = get_dataset()
     model = get_model(device)
+    print(model.state_dict().keys())
+    print(next(model.parameters()))
+    exit()
     optimizer, scheduler = get_optimizer(model.parameters())
     criterion = torch.nn.CrossEntropyLoss()
 
