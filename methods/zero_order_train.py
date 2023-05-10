@@ -1,38 +1,34 @@
 #!/usr/bin/env python3
 
 import os
-
 import numpy as np
 import torch
 from torch import nn
 from torch import Tensor
 from typing import List
-    # TODO : return or set model with new parameters
-    # new_parameter
 import torchvision
-
+from torch.utils.tensorboard import SummaryWriter  # type: ignore
 import utils.accumulators
+
 
 config = dict(
     dataset="Cifar10",
     model="resnet18",
 
-    u=0.001,
-    eta=1,
-
-    optimizer="SGD",
-    optimizer_decay_at_epochs=[150, 250],
-    optimizer_decay_with_factor=10.0,
-    optimizer_learning_rate=0.1,
-    optimizer_momentum=0.9,
-    optimizer_weight_decay=0.0001,
     batch_size=256,
     num_epochs=300,
     seed=42,
 )
 
+hparams = dict(
+    u=0.001,
+    eta=100,
+)
+
 
 output_dir = "./output.tmp"  # Can be overwritten by a script calling this
+writer = SummaryWriter(output_dir)
+writer.add_hparams(config, {})
 
 
 def loss(model_updated, loss_fn, x, y):
@@ -40,6 +36,16 @@ def loss(model_updated, loss_fn, x, y):
 
 
 def update_model(model: nn.Module, u: float, epsilon: List[Tensor]) -> nn.Module:
+    """ Update the model parameters with theta = theta + u * epsilon
+
+    Args:
+        model: the model to update
+        u: the step size
+        epsilon: the noise to add to the parameters
+
+    Returns:
+        the updated model
+    """
     params = model.parameters()
 
     # Update the model parameters with theta = theta + u * epsilon
@@ -50,6 +56,19 @@ def update_model(model: nn.Module, u: float, epsilon: List[Tensor]) -> nn.Module
 
 
 def zo_gradient(model: nn.Module, loss_fn, u: float, epsilon: List[Tensor], x: Tensor, y: Tensor):
+    """ Compute the zeroth order gradient of the loss function
+
+    Args:
+        model: the model to update
+        loss_fn: the loss function
+        u: the step size
+        epsilon: the noise to add to the parameters
+        x: the input data
+        y: the target data
+
+    Returns:
+        the zeroth order gradient of the loss function
+    """
     # Model at theta + u * epsilon
     update_model(model, u, epsilon)
     l_updated = loss(model, loss_fn, x, y)
@@ -75,6 +94,9 @@ def zo_update(model: nn.Module, loss_fn, u: float, epsilon: List[Tensor], eta: f
     return
 
 
+def step(model, batch)
+
+
 def main():
     """
     Train a model
@@ -94,7 +116,6 @@ def main():
     # `config` dictionary.
     training_loader, test_loader = get_dataset()
     model = get_model(device)
-    optimizer, scheduler = get_optimizer(model.parameters())
     criterion = torch.nn.CrossEntropyLoss()
 
     # We keep track of the best accuracy so far to store checkpoints
@@ -110,26 +131,24 @@ def main():
         mean_train_accuracy = utils.accumulators.Mean()
         mean_train_loss = utils.accumulators.Mean()
 
-        for batch_x, batch_y in training_loader:
-            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+        with torch.no_grad():
+            for batch_x, batch_y in training_loader:
+                batch_x, batch_y = batch_x.to(device), batch_y.to(device)
 
-            # Optimization step
-            epsilon = [torch.randn_like(param) for param in model.parameters()]
-            epsilon_norm = torch.norm(torch.cat([eps.flatten() for eps in epsilon]), 2)
-            epsilon = [eps / epsilon_norm for eps in epsilon]
-            zo_update(model, criterion, config["u"], epsilon, config["eta"], batch_x, batch_y)
+                # Optimization step
+                epsilon = [torch.randn_like(param) for param in model.parameters()]
+                epsilon_norm = torch.norm(torch.cat([eps.flatten() for eps in epsilon]), 2)
+                epsilon = [eps / epsilon_norm for eps in epsilon]
+                zo_update(model, criterion, config["u"], epsilon, config["eta"], batch_x, batch_y)
 
-            # Metrics
-            prediction = model(batch_x)
-            loss = criterion(prediction, batch_y)
-            acc = accuracy(prediction, batch_y)
+                # Metrics
+                prediction = model(batch_x)
+                loss = criterion(prediction, batch_y)
+                acc = accuracy(prediction, batch_y)
 
             # Store the statistics
             mean_train_loss.add(loss.item(), weight=len(batch_x))
             mean_train_accuracy.add(acc.item(), weight=len(batch_x))
-
-        # Update the optimizer's learning rate
-        scheduler.step()
 
         # Log training stats
         log_metric(
@@ -147,13 +166,14 @@ def main():
         model.eval()
         mean_test_accuracy = utils.accumulators.Mean()
         mean_test_loss = utils.accumulators.Mean()
-        for batch_x, batch_y in test_loader:
-            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
-            prediction = model(batch_x)
-            loss = criterion(prediction, batch_y)
-            acc = accuracy(prediction, batch_y)
-            mean_test_loss.add(loss.item(), weight=len(batch_x))
-            mean_test_accuracy.add(acc.item(), weight=len(batch_x))
+        with torch.no_grad():
+            for batch_x, batch_y in test_loader:
+                batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+                prediction = model(batch_x)
+                loss = criterion(prediction, batch_y)
+                acc = accuracy(prediction, batch_y)
+                mean_test_loss.add(loss.item(), weight=len(batch_x))
+                mean_test_accuracy.add(acc.item(), weight=len(batch_x))
 
         # Log test stats
         log_metric(
@@ -168,6 +188,10 @@ def main():
         )
 
         best_accuracy_so_far.add(mean_test_accuracy.value())
+
+        # Log for tensorboard
+        writer.add_scalar('Loss/train', mean_train_loss.value(), epoch)
+        writer.add_scalar('Accuracy/train', mean_train_accuracy.value(), epoch)
 
     # Return the optimal accuracy, could be used for learning rate tuning
     return best_accuracy_so_far.value()
@@ -245,31 +269,6 @@ def get_dataset(
     )
 
     return training_loader, test_loader
-
-
-def get_optimizer(model_parameters):
-    """
-    Create an optimizer for a given model
-    :param model_parameters: a list of parameters to be trained
-    :return: Tuple (optimizer, scheduler)
-    """
-    if config["optimizer"] == "SGD":
-        optimizer = torch.optim.SGD(
-            model_parameters,
-            lr=config["optimizer_learning_rate"],
-            momentum=config["optimizer_momentum"],
-            weight_decay=config["optimizer_weight_decay"],
-        )
-    else:
-        raise ValueError("Unexpected value for optimizer")
-
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer,
-        milestones=config["optimizer_decay_at_epochs"],
-        gamma=1.0 / config["optimizer_decay_with_factor"],
-    )
-
-    return optimizer, scheduler
 
 
 def get_model(device):
