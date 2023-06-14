@@ -1,5 +1,6 @@
 import argparse
 import os
+from time import time
 import torch
 from torchmetrics import Accuracy
 from utils.training import train, get_optimizer
@@ -52,9 +53,11 @@ def main():
         f.write("\n")
         f.write("Epoch:\n")
 
+    top = time()
     for epoch, results in enumerate(train(model, optimizer, train_dl, test_dl, criterion, config["epochs"], device, metrics)):
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(f"  {epoch}:\n")
+            f.write(f"    time: {time()-top}\n")
             for key, value in results.items():
                 f.write(f"    {key}: {value}\n")
 
