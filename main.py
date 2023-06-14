@@ -42,7 +42,7 @@ def main():
         "Accuracy": Accuracy(task="multiclass", num_classes=config["num_classes"]).to(device),
     }
 
-    results_file = f"results/{config['dataset']}_{config['model']}_{config['optimizer']}_{len(os.listdir('results'))}.txt"
+    results_file = f"results/{config['dataset']}_{config['model']}_{config['optimizer']}_{len(os.listdir('results'))}.yaml"
 
     with open(results_file, "w", encoding="utf-8") as f:
         f.write("Config:\n")
