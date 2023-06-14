@@ -80,6 +80,7 @@ def get_FashionMNIST(
     :return: Tuple (training_loader, test_loader)
     """
     config["input_shape"] = [1, 32, 32]
+    config["num_classes"] = 10
 
     dataset = torchvision.datasets.FashionMNIST
 
@@ -132,22 +133,25 @@ def get_dataset(
     """
 
     if config["dataset"] in ["Cifar10", "Cifar100"]:
-        return get_CIFAR(
+        train_dl, test_dl = get_CIFAR(
             config,
             test_batch_size,
             shuffle_train,
             num_workers,
             data_root,
         )
+        criterion = torch.nn.CrossEntropyLoss()
     elif config["dataset"] == "FashionMNIST":
-        return get_FashionMNIST(
+        train_dl, test_dl = get_FashionMNIST(
             config,
             test_batch_size,
             shuffle_train,
             num_workers,
             data_root,
         )
+        criterion = torch.nn.CrossEntropyLoss()
     else:
         raise ValueError(
             "Unexpected value for config[dataset] {}".format(config["dataset"])
         )
+    return train_dl, test_dl, criterion
