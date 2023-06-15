@@ -2,7 +2,7 @@ import argparse
 import os
 from time import time
 import torch
-from torchmetrics import Accuracy
+from torchmetrics import Accuracy, Recall, Precision
 from utils.training import train, get_optimizer
 from utils.model import get_model
 from utils.dataset import get_dataset
@@ -41,6 +41,8 @@ def main():
     optimizer = get_optimizer(config, model.parameters())
     metrics = {
         "Accuracy": Accuracy(task="multiclass", num_classes=config["num_classes"]).to(device),
+        "Recall": Recall(task="multiclass", num_classes=config["num_classes"]).to(device),
+        "Precision": Precision(task="multiclass", num_classes=config["num_classes"]).to(device),
     }
 
     results_file = f"results/{config['dataset']}_{config['model']}_{config['optimizer']}_{len(os.listdir('results'))}.yaml"

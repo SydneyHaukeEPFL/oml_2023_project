@@ -61,6 +61,7 @@ class ZeroOrderOptimizer(Optimizer):
         self.u = u
         self.eta = eta
 
+    @torch.no_grad()
     def update_model(self, model, batch, criterion, metrics, device):
         batch_x, batch_y = batch
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)
