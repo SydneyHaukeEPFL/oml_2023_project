@@ -8,15 +8,15 @@ class MLP(nn.Module):
     """ A simple MLP """
     def __init__(self, input_shape, hidden_size, output_size):
         super().__init__()
-        self.fc1 = nn.Linear(input_shape[0]*input_shape[1]*input_shape[2], hidden_size, bias=True)
+        self.fc1 = nn.Linear(input_shape[0], hidden_size, bias=True)
         self.fc2 = nn.Linear(hidden_size, output_size, bias=True)
 
     def forward(self, x):
-        x = x.view(x.size(0), -1)
+        # x = x.view(x.size(0), -1)
         x = self.fc1(x)
         x = torch.relu(x)
-        x = self.fc2(x)
-        x = torch.log_softmax(x, dim=1)
+        x = self.fc2(x).squeeze()
+        # x = torch.log_softmax(x, dim=1)
         return x
 
 
@@ -24,15 +24,31 @@ class SimpleCNN(nn.Module):
     """ A simple CNN """
     def __init__(self, input_shape, output_size) -> None:
         super().__init__()
+        # 32
         self.conv1 = nn.Conv2d(input_shape[0], 32, 3, padding=1)
         self.conv2 = nn.Conv2d(32, 32, 3, padding=1)
-        self.fc1 = nn.Linear(input_shape[1] * input_shape[2] * 32, 128)
+        self.conv3 = nn.Conv2d(32, 64, 3, padding=1, stride=2)
+        # 16
+        self.conv4 = nn.Conv2d(64, 64, 3, padding=1)
+        self.conv5 = nn.Conv2d(64, 128, 3, padding=1, stride=2)
+        # 8
+        self.conv6 = nn.Conv2d(128, 128, 3, padding=1)
+        self.conv7 = nn.Conv2d(128, 256, 3, padding=1, stride=2)
+        # 4
+        self.fc1 = nn.Linear(256, 128)
         self.fc2 = nn.Linear(128, output_size)
 
     def forward(self, x):
-        x = torch.relu(self.conv1(x))
-        x = torch.relu(self.conv2(x))
-        x = x.view(x.size(0), -1)
+        x = torch.selu(self.conv1(x))
+        x = torch.selu(self.conv2(x))  # + x
+        x = torch.selu(self.conv3(x))
+        x = torch.selu(self.conv4(x))  # + x
+        x = torch.selu(self.conv5(x))
+        x = torch.selu(self.conv6(x))  # + x
+        x = torch.selu(self.conv7(x))
+        x = torch.mean(x, dim=-1)
+        x = torch.mean(x, dim=-1)
+        # x = x.view(x.size(0), -1)
         x = torch.relu(self.fc1(x))
         x = torch.log_softmax(self.fc2(x), dim=1)
         return x

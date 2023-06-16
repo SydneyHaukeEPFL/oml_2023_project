@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import torch
 import torch.utils.data
 import torch.backends.cudnn
@@ -120,6 +121,49 @@ def get_FashionMNIST(
     return training_loader, test_loader
 
 
+def get_wine(
+    config,
+    test_batch_size,
+    shuffle_train,
+    num_workers,
+    data_root
+):
+    """ Get wine quality dataset """
+    config["input_shape"] = [11]
+    config["num_classes"] = 1
+
+    class SimpleDataset(torch.utils.data.Dataset):
+        def __init__(self, data):
+            self.data = torch.tensor(data, dtype=torch.float32)
+
+        def __len__(self):
+            return len(self.data)
+
+        def __getitem__(self, idx):
+            x = self.data[idx]
+            return x[:-1], x[-1]
+
+    df = pd.read_csv(os.path.join(data_root, "wine_quality", "winequality-red.csv"), sep=";")
+    data = df.values
+    num_train = (80*data.shape[0])//100
+
+    train_ds = SimpleDataset(data[:num_train])
+    test_ds = SimpleDataset(data[num_train:])
+    train_dl = torch.utils.data.DataLoader(
+        train_ds,
+        batch_size=config["batch_size"],
+        shuffle=shuffle_train,
+        num_workers=num_workers
+    )
+    test_dl = torch.utils.data.DataLoader(
+        test_ds,
+        batch_size=test_batch_size,
+        shuffle=False,
+        num_workers=num_workers
+    )
+    return train_dl, test_dl
+
+
 def get_dataset(
     config,
     test_batch_size=1000,
@@ -150,6 +194,15 @@ def get_dataset(
             data_root,
         )
         criterion = torch.nn.CrossEntropyLoss()
+    elif config["dataset"] == "wine":
+        train_dl, test_dl = get_wine(
+            config,
+            test_batch_size,
+            shuffle_train,
+            num_workers,
+            data_root
+        )
+        criterion = torch.nn.MSELoss()
     else:
         raise ValueError(
             "Unexpected value for config[dataset] {}".format(config["dataset"])

@@ -67,9 +67,10 @@ class ZeroOrderOptimizer(Optimizer):
         batch_x, batch_y = batch_x.to(device), batch_y.to(device)
 
         # Compute gradients for the batch
-        epsilon = [torch.randn_like(param) for param in model.parameters()]
-        epsilon_norm = torch.norm(torch.cat([eps.flatten() for eps in epsilon]), 2)
-        epsilon = [eps / epsilon_norm for eps in epsilon]
+        # epsilon = [torch.randn_like(param) for param in model.parameters()]
+        # epsilon_norm = torch.norm(torch.cat([eps.flatten() for eps in epsilon]), 2)
+        # epsilon = [eps / epsilon_norm for eps in epsilon]
+        epsilon = [torch.randint(-1, 1, size=param.size(), device=device, dtype=torch.float32) for param in model.parameters()]
         gradients = zo_gradient(model, criterion, self.u, epsilon, batch_x, batch_y)
 
         # Update the model parameters
