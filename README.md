@@ -15,9 +15,9 @@ python main.py
     --u=(float)
     --batch_size=(int)
 ```
-The results and the final model weights are stored in `/results`.
+The results and the final model weights are stored in `results/`.
 
 # Reproducibility
-The script that we used to train our models are `tunining_cifar.sh` and `tuning_wine.sh`.
+The script that we used to train our models are `tuning_cifar.sh` and `tuning_wine.sh`.
 
 Then the analysis of the results are done using the two jupyter notebooks: `analysis_cifar10.ipynb` and `analysis_wine.ipynb`
